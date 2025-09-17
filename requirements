@@ -1,0 +1,16 @@
+# Core CLI framework for creating commands
+typer
+
+# Interactive shell UI (prompt, history, autocompletion)
+prompt-toolkit
+
+# Rich terminal output (colors, styles, icons)
+rich
+
+# Used for Git integration in the dynamic prompt
+GitPython
+
+# INTERNAL DEV USE
+# Used for packaging the application into a single executable
+# (Required to run the build.bat script)
+pyinstaller 

@@ -1,0 +1,93 @@
+======================================================================
+                         DeviShell Mk XII
+======================================================================
+
+A feature-rich, high-performance, PowerShell-based shell environment
+built with Python.
+
+DeviShell wraps the powerful PowerShell 7 engine in a more user-friendly,
+customizable, and infinitely extensible Python environment, creating a
+"meta-shell" that provides the best of both worlds.
+
+
+----------------------------------------------------------------------
+Features
+----------------------------------------------------------------------
+
+*   Hybrid Command System:
+    -   Core Built-ins (`cd`, `exit`): Handled directly by Python for
+        state management.
+    -   Custom Python Commands: A rich suite of tools written in Python
+        that are not available in a standard shell.
+    -   PowerShell Fallback: Any other command is seamlessly passed to
+        the `pwsh.exe` engine, giving you its full power.
+
+*   Dynamic & Informative Prompt:
+    -   Displays your current working directory (with `~` for home).
+    -   Shows the active Python virtual environment.
+    -   Integrates Git to show the current branch and a `*` for dirty status.
+    -   Performance-cached to remain snappy even in large repositories.
+
+*   Enhanced Interactivity:
+    -   Persistent command history (`.devishell_history`).
+    -   Advanced autocompletion for paths, built-ins, and Python commands.
+    -   Rich, color-coded feedback for success, errors, and information.
+
+*   Custom Python Command Suite:
+    -   `search <term> [-p <path>]`: Recursively search for files/dirs.
+    -   `tree [<path>] [-d <depth>]`: Display a visual directory tree.
+    -   `mkcd <dirname>`: Create a directory and immediately enter it.
+    -   `serve [<port>] [-d <path>]`: Start an instant web server for a directory.
+    -   `pwgen [-l <len>] [-c <count>]`: Generate secure, random passwords.
+    -   `myip`: Display your local private IP address.
+
+
+----------------------------------------------------------------------
+Requirements
+----------------------------------------------------------------------
+
+1.  Python 3.8+
+2.  PowerShell 7 (`pwsh.exe`) accessible on your system.
+3.  Python Libraries:
+    -   typer
+    -   prompt-toolkit
+    -   rich
+    -   GitPython
+    -   (For building) pyinstaller
+
+
+----------------------------------------------------------------------
+How to Run from Source
+----------------------------------------------------------------------
+
+1.  Install the required libraries:
+    pip install typer prompt-toolkit rich GitPython
+
+2.  Open `main.py` and ensure the `POWERSHELL_EXECUTABLE` variable
+    points to the correct location of your `pwsh.exe`.
+
+3.  Run the shell from your terminal:
+    python main.py
+
+
+----------------------------------------------------------------------
+How to Build the Executable
+----------------------------------------------------------------------
+
+This process packages the entire application into a single `DeviShell.exe` file.
+
+1.  Install PyInstaller:
+    pip install pyinstaller
+
+2.  Ensure your project structure is as follows:
+    /
+    |-- main.py
+    |-- build.bat
+    |-- /assets/
+        |-- xok.ico
+
+3.  Run the `build.bat` script by double-clicking it.
+
+4.  The script will create a `dist` folder containing the final
+    `DeviShell.exe`. All temporary build files will be automatically
+    cleaned up. You can then move `DeviShell.exe` anywhere on your system.
