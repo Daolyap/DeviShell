@@ -1,93 +1,418 @@
 ======================================================================
-                         DeviShell Mk XII
+                         DeviShell v2.0
+              The Ultimate PowerShell Experience
 ======================================================================
 
-A feature-rich, high-performance, PowerShell-based shell environment
-built with Python.
+A completely redesigned, feature-rich, high-performance shell
+environment built with Python that wraps PowerShell 7 with advanced
+functionality, stunning UI, and infinite extensibility.
 
-DeviShell wraps the powerful PowerShell 7 engine in a more user-friendly,
-customizable, and infinitely extensible Python environment, creating a
-"meta-shell" that provides the best of both worlds.
+----------------------------------------------------------------------
+🎨 NEW IN VERSION 2.0 - COMPLETE REDUX
+----------------------------------------------------------------------
+
+This is a MASSIVE overhaul with 10x more features and functionality!
+
+NEW FEATURES:
+✓ 5 Beautiful Themes (default, dark, matrix, ocean, sunset)
+✓ JSON-based Configuration System
+✓ Command Aliases with Expansion
+✓ Directory Bookmarks (@bookmark navigation)
+✓ Plugin Architecture for Custom Extensions
+✓ Startup Script Execution (.devishell/startup.dsh)
+✓ 30+ Built-in Commands (tripled from v1!)
+✓ Enhanced Git Integration (ahead/behind indicators)
+✓ System Monitoring & Process Management
+✓ File Operations Suite (copy, move, remove, touch)
+✓ Advanced File Search (grep with regex)
+✓ Syntax Highlighting for File Display
+✓ Network Tools (port scanning)
+✓ Encoding/Decoding Utilities
+✓ Weather Information Integration
+✓ Calculator Command
+✓ Environment Variable Management
+✓ Disk Usage Analysis
+✓ Command History with Search (Ctrl+R)
+✓ Key Bindings (Ctrl+L to clear)
+✓ Previous Directory Navigation (cd -)
+✓ Enhanced Autocomplete (commands, files, bookmarks)
 
 
 ----------------------------------------------------------------------
-Features
+📋 COMPLETE COMMAND REFERENCE
 ----------------------------------------------------------------------
 
-*   Hybrid Command System:
-    -   Core Built-ins (`cd`, `exit`): Handled directly by Python for
-        state management.
-    -   Custom Python Commands: A rich suite of tools written in Python
-        that are not available in a standard shell.
-    -   PowerShell Fallback: Any other command is seamlessly passed to
-        the `pwsh.exe` engine, giving you its full power.
+🔧 BUILT-IN COMMANDS:
+  • cd [path|@bookmark|-]    - Change directory (supports bookmarks and -)
+  • exit / quit              - Exit DeviShell
+  • clear / cls              - Clear the screen
+  • history                  - Show command history
 
-*   Dynamic & Informative Prompt:
-    -   Displays your current working directory (with `~` for home).
-    -   Shows the active Python virtual environment.
-    -   Integrates Git to show the current branch and a `*` for dirty status.
-    -   Performance-cached to remain snappy even in large repositories.
+⚙️ CONFIGURATION COMMANDS:
+  • config_set <key> <val>   - Set configuration value
+  • config_get [key]         - Get configuration value(s)
+  • theme [name]             - Set or list available themes
 
-*   Enhanced Interactivity:
-    -   Persistent command history (`.devishell_history`).
-    -   Advanced autocompletion for paths, built-ins, and Python commands.
-    -   Rich, color-coded feedback for success, errors, and information.
+📍 BOOKMARK COMMANDS:
+  • bookmark [name] [path]   - Create or list bookmarks
+  • unbookmark <name>        - Remove a bookmark
+  • cd @<name>               - Jump to a bookmark
 
-*   Custom Python Command Suite:
-    -   `search <term> [-p <path>]`: Recursively search for files/dirs.
-    -   `tree [<path>] [-d <depth>]`: Display a visual directory tree.
-    -   `mkcd <dirname>`: Create a directory and immediately enter it.
-    -   `serve [<port>] [-d <path>]`: Start an instant web server for a directory.
-    -   `pwgen [-l <len>] [-c <count>]`: Generate secure, random passwords.
-    -   `myip`: Display your local private IP address.
+🔗 ALIAS COMMANDS:
+  • alias [name] [command]   - Create or list aliases
+  • unalias <name>           - Remove an alias
+
+📁 FILE OPERATIONS:
+  • search <term> [-p path]  - Search for files/directories
+  • tree [path] [-d depth]   - Display directory tree
+  • mkcd <name>              - Create and enter directory
+  • touch <filename>         - Create empty file
+  • cat <file> [-n lines]    - Display file with syntax highlighting
+  • grep <pattern> [path]    - Search for pattern in files
+  • copy <source> <dest>     - Copy file or directory
+  • move <source> <dest>     - Move file or directory
+  • remove <path> [-f]       - Remove file or directory
+
+🌐 NETWORK COMMANDS:
+  • serve [port] [-d path]   - Start HTTP server (default: 8000)
+  • myip                     - Show local IP address
+  • port_scan [host] [start] [end] - Scan for open ports
+  • weather [city]           - Get weather information
+
+💻 SYSTEM COMMANDS:
+  • sysinfo                  - Display system information
+  • processes [-n limit]     - List running processes
+  • kill <pid>               - Kill process by PID
+  • env [var] [value]        - Get or set environment variables
+  • diskusage [path]         - Show disk usage statistics
+
+🔀 GIT COMMANDS:
+  • gitstatus                - Enhanced git status display
+  • gitlog [-n count]        - Show git log
+  • gitbranches              - List git branches
+
+🛠️ UTILITY COMMANDS:
+  • pwgen [-l len] [-c cnt]  - Generate secure passwords
+  • calc <expression>        - Simple calculator
+  • encode <text> [-m method] - Encode text (base64, hex)
+  • decode <text> [-m method] - Decode text (base64, hex)
+  • timestamp                - Show current Unix timestamp
+  • plugins                  - List loaded plugins
+  • help_cmd [command]       - Show help information
 
 
 ----------------------------------------------------------------------
-Requirements
+🎨 THEMES
 ----------------------------------------------------------------------
 
-1.  Python 3.8+
-2.  PowerShell 7 (`pwsh.exe`) accessible on your system.
-3.  Python Libraries:
-    -   typer
-    -   prompt-toolkit
-    -   rich
-    -   GitPython
-    -   (For building) pyinstaller
+DeviShell v2.0 includes 5 beautiful themes:
 
+1. default  - Professional blue theme (original)
+2. dark     - Dark green terminal aesthetic
+3. matrix   - Classic matrix-style green on black
+4. ocean    - Calming ocean blues
+5. sunset   - Warm sunset colors
 
-----------------------------------------------------------------------
-How to Run from Source
-----------------------------------------------------------------------
-
-1.  Install the required libraries:
-    pip install typer prompt-toolkit rich GitPython
-
-2.  Open `main.py` and ensure the `POWERSHELL_EXECUTABLE` variable
-    points to the correct location of your `pwsh.exe`.
-
-3.  Run the shell from your terminal:
-    python main.py
+Switch themes with: theme <name>
+Example: theme matrix
 
 
 ----------------------------------------------------------------------
-How to Build the Executable
+⚙️ CONFIGURATION
 ----------------------------------------------------------------------
 
-This process packages the entire application into a single `DeviShell.exe` file.
+All configuration is stored in: ~/.devishell/
 
-1.  Install PyInstaller:
-    pip install pyinstaller
+Files:
+  • config.json       - Main configuration
+  • bookmarks.json    - Saved directory bookmarks
+  • aliases.json      - Command aliases
+  • history           - Command history
+  • startup.dsh       - Startup script
+  • plugins/          - Custom plugins directory
 
-2.  Ensure your project structure is as follows:
-    /
-    |-- main.py
-    |-- build.bat
-    |-- /assets/
-        |-- xok.ico
+Configuration Options:
+  • theme             - Active theme name
+  • show_time         - Display time in prompt (true/false)
+  • show_git          - Display git info in prompt (true/false)
+  • show_venv         - Display virtualenv in prompt (true/false)
+  • max_path_length   - Maximum path display length
+  • prompt_char       - Prompt character (default: >)
+  • powershell_path   - Path to PowerShell executable
 
-3.  Run the `build.bat` script by double-clicking it.
+Set config: config_set <key> <value>
+Get config: config_get [key]
 
-4.  The script will create a `dist` folder containing the final
-    `DeviShell.exe`. All temporary build files will be automatically
-    cleaned up. You can then move `DeviShell.exe` anywhere on your system.
+
+----------------------------------------------------------------------
+📍 BOOKMARKS
+----------------------------------------------------------------------
+
+Bookmarks let you quickly navigate to frequently used directories.
+
+Create bookmark for current directory:
+  bookmark myproject
+
+Create bookmark for specific path:
+  bookmark docs ~/Documents
+
+Jump to bookmark:
+  cd @myproject
+
+List all bookmarks:
+  bookmark
+
+Remove bookmark:
+  unbookmark myproject
+
+
+----------------------------------------------------------------------
+🔗 ALIASES
+----------------------------------------------------------------------
+
+Aliases let you create shortcuts for commonly used commands.
+
+Create alias:
+  alias ll "ls -la"
+  alias gs "gitstatus"
+  alias update "git pull && npm install"
+
+Use alias:
+  ll
+
+List all aliases:
+  alias
+
+Remove alias:
+  unalias ll
+
+
+----------------------------------------------------------------------
+🔌 PLUGIN SYSTEM
+----------------------------------------------------------------------
+
+DeviShell v2.0 supports custom plugins for extending functionality.
+
+Plugin Location: ~/.devishell/plugins/
+
+Creating a Plugin:
+1. Create a .py file in the plugins directory
+2. Implement a register() function (called on load)
+3. Implement a handle_command(command: List[str]) function
+4. Return True if command was handled, False otherwise
+
+Example Plugin (example_plugin.py):
+
+    def register():
+        """Called when plugin is loaded"""
+        print("Example plugin loaded!")
+
+    def handle_command(command):
+        """Handle command if recognized"""
+        if command[0] == "hello":
+            print("Hello from plugin!")
+            return True
+        return False
+
+Plugins are automatically loaded on startup.
+List loaded plugins: plugins
+
+
+----------------------------------------------------------------------
+🚀 STARTUP SCRIPT
+----------------------------------------------------------------------
+
+DeviShell v2.0 executes ~/.devishell/startup.dsh on startup.
+
+Use this to:
+  • Set environment variables
+  • Create aliases
+  • Run initialization commands
+  • Display information
+
+Example startup.dsh:
+
+    # My DeviShell Startup Script
+    alias gs gitstatus
+    alias ll ls -la
+    env MY_VAR my_value
+    echo Welcome to DeviShell!
+
+
+----------------------------------------------------------------------
+⌨️ KEY BINDINGS
+----------------------------------------------------------------------
+
+  • Ctrl+L         - Clear screen
+  • Ctrl+R         - Search command history (built into prompt-toolkit)
+  • Ctrl+C         - Cancel current command
+  • Ctrl+D         - Exit DeviShell
+  • Tab            - Autocomplete commands/files/bookmarks
+  • Up/Down        - Navigate command history
+
+
+----------------------------------------------------------------------
+🎯 ADVANCED FEATURES
+----------------------------------------------------------------------
+
+ENHANCED PROMPT:
+  • Shows current directory (truncated if too long)
+  • Virtual environment indicator
+  • Git branch with dirty status (*)
+  • Git ahead (↑) and behind (↓) indicators
+  • Current time
+  • Customizable prompt character
+
+SMART AUTOCOMPLETION:
+  • Command name completion
+  • File and directory completion
+  • Bookmark completion (@bookmark)
+  • Alias completion with indicator
+
+GIT INTEGRATION:
+  • Automatic git repository detection
+  • Branch name display
+  • Dirty status indicator
+  • Ahead/behind tracking
+  • Enhanced git commands (gitstatus, gitlog, gitbranches)
+
+DIRECTORY NAVIGATION:
+  • cd -         Navigate to previous directory
+  • cd           Navigate to home directory
+  • cd @name     Navigate to bookmarked directory
+
+FILE OPERATIONS:
+  • Recursive search with visual output
+  • Beautiful tree display with icons
+  • Syntax-highlighted file viewing
+  • Regex pattern search in files
+  • Safe file operations with confirmations
+
+
+----------------------------------------------------------------------
+📦 INSTALLATION & REQUIREMENTS
+----------------------------------------------------------------------
+
+Requirements:
+1. Python 3.8+
+2. PowerShell 7 (pwsh.exe)
+3. Python Libraries:
+   - typer
+   - prompt-toolkit
+   - rich
+   - GitPython
+   - psutil
+   - Pygments
+
+Install Dependencies:
+   pip install typer prompt-toolkit rich GitPython psutil Pygments
+
+Or use the requirements file:
+   pip install -r requirements
+
+
+----------------------------------------------------------------------
+🏃 RUNNING DEVISHELL
+----------------------------------------------------------------------
+
+From Source:
+   python main.py
+
+From Executable (after building):
+   DeviShell.exe
+
+First Run:
+  • Configuration directory (~/.devishell) will be created
+  • Default config files will be generated
+  • You can customize themes, aliases, bookmarks immediately
+
+
+----------------------------------------------------------------------
+🔨 BUILDING EXECUTABLE
+----------------------------------------------------------------------
+
+1. Install PyInstaller:
+   pip install pyinstaller
+
+2. Build command:
+   pyinstaller --onefile --icon=assets/Xok.ico --name=DeviShell main.py
+
+3. Executable will be in: dist/DeviShell.exe
+
+4. Optional: Use build.bat for automated building
+
+
+----------------------------------------------------------------------
+💡 TIPS & TRICKS
+----------------------------------------------------------------------
+
+1. Use bookmarks for your most-visited directories:
+   bookmark work ~/work/projects
+   cd @work
+
+2. Create aliases for common commands:
+   alias gp "git push"
+   alias gc "git commit -m"
+
+3. Use startup script to initialize your environment:
+   echo "theme matrix" > ~/.devishell/startup.dsh
+
+4. Try different themes to find your favorite:
+   theme sunset
+
+5. Use grep to search code:
+   grep "function" . -r
+
+6. Monitor system resources:
+   sysinfo
+   processes
+
+7. Scan network ports:
+   port_scan localhost 8000 9000
+
+8. Generate secure passwords:
+   pwgen -l 32 -c 5
+
+
+----------------------------------------------------------------------
+🔄 UPGRADE GUIDE (v1.x → v2.0)
+----------------------------------------------------------------------
+
+Version 2.0 is a complete rewrite with backward-compatible commands.
+
+New Dependencies Required:
+  • psutil (system monitoring)
+  • Pygments (syntax highlighting)
+
+All your PowerShell commands still work!
+Previous commands (search, tree, mkcd, serve, pwgen, myip) are enhanced.
+
+New Features to Explore:
+  1. Set up bookmarks for your favorite directories
+  2. Create aliases for your most-used commands
+  3. Try the new themes
+  4. Explore the new file operations (copy, move, grep)
+  5. Use system monitoring commands
+  6. Check out the enhanced git commands
+
+
+----------------------------------------------------------------------
+📞 SUPPORT & FEEDBACK
+----------------------------------------------------------------------
+
+Found a bug? Have a feature request?
+This is your personal DeviShell - customize it however you like!
+
+The plugin system allows unlimited extensibility.
+The configuration system lets you tailor every aspect.
+The theme system gives you visual control.
+
+
+----------------------------------------------------------------------
+📝 LICENSE & CREDITS
+----------------------------------------------------------------------
+
+DeviShell v2.0 - Personal PowerShell Enhancement
+Built with Python, Rich, Prompt-Toolkit, and Typer
+
+Enjoy your enhanced shell experience! 🚀

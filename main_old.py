@@ -12,17 +12,19 @@ import shutil
 import psutil
 import platform
 import importlib.util
-import re
 from pathlib import Path
 from typing import List, Dict, Callable, Optional, Any
 from datetime import datetime
 from collections import deque
 
+import typer
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.lexers import PygmentsLexer
+from pygments.lexers.shell import BashLexer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -141,7 +143,7 @@ def load_config():
         with open(CONFIG_FILE, 'r') as f:
             config = {**DEFAULT_CONFIG, **json.load(f)}
     except Exception as e:
-        console.print(f"[red]Failed to load config: {e}[/red]")
+        echo_error(f"Failed to load config: {e}")
         config = DEFAULT_CONFIG.copy()
 
 def save_config(cfg: Dict):
@@ -150,7 +152,7 @@ def save_config(cfg: Dict):
         with open(CONFIG_FILE, 'w') as f:
             json.dump(cfg, f, indent=2)
     except Exception as e:
-        console.print(f"[red]Failed to save config: {e}[/red]")
+        echo_error(f"Failed to save config: {e}")
 
 def load_bookmarks():
     """Load bookmarks from file"""
@@ -159,7 +161,7 @@ def load_bookmarks():
         with open(BOOKMARKS_FILE, 'r') as f:
             bookmarks = json.load(f)
     except Exception as e:
-        console.print(f"[red]Failed to load bookmarks: {e}[/red]")
+        echo_error(f"Failed to load bookmarks: {e}")
         bookmarks = {}
 
 def save_bookmarks():
@@ -168,7 +170,7 @@ def save_bookmarks():
         with open(BOOKMARKS_FILE, 'w') as f:
             json.dump(bookmarks, f, indent=2)
     except Exception as e:
-        console.print(f"[red]Failed to save bookmarks: {e}[/red]")
+        echo_error(f"Failed to save bookmarks: {e}")
 
 def load_aliases():
     """Load aliases from file"""
@@ -177,7 +179,7 @@ def load_aliases():
         with open(ALIASES_FILE, 'r') as f:
             aliases = json.load(f)
     except Exception as e:
-        console.print(f"[red]Failed to load aliases: {e}[/red]")
+        echo_error(f"Failed to load aliases: {e}")
         aliases = {}
 
 def save_aliases():
@@ -186,7 +188,7 @@ def save_aliases():
         with open(ALIASES_FILE, 'w') as f:
             json.dump(aliases, f, indent=2)
     except Exception as e:
-        console.print(f"[red]Failed to save aliases: {e}[/red]")
+        echo_error(f"Failed to save aliases: {e}")
 
 def load_plugins():
     """Load plugins from plugins directory"""
@@ -203,9 +205,9 @@ def load_plugins():
 
                 if hasattr(module, 'register'):
                     loaded_plugins[plugin_file.stem] = module
-                    console.print(f"[green]✔ Loaded plugin: {plugin_file.stem}[/green]")
+                    echo_success(f"Loaded plugin: {plugin_file.stem}")
         except Exception as e:
-            console.print(f"[red]✖ Failed to load plugin {plugin_file.stem}: {e}[/red]")
+            echo_error(f"Failed to load plugin {plugin_file.stem}: {e}")
 
 def get_style():
     """Get current theme style"""
@@ -347,7 +349,7 @@ class DeviShellCompleter(Completer):
             except (OSError, IndexError):
                 pass
 
-# ===================
+# ====================
 # Built-in Commands
 # ====================
 
@@ -416,41 +418,29 @@ BUILTIN_COMMANDS: Dict[str, Callable[[List[str]], None]] = {
 }
 
 # ====================
-# Extended Commands Registry
+# Extended Commands (Direct Functions)
 # ====================
 
-EXTENDED_COMMANDS: Dict[str, Callable] = {}
+# We'll use a command registry instead of Typer's dispatcher for better shell integration
+EXTENDED_COMMANDS = {}
 
-def parse_args(args: List[str], expected: Dict[str, Any]) -> Dict[str, Any]:
-    """Simple argument parser for commands"""
-    result = {}
-    i = 0
-
-    for key, default in expected.items():
-        if i < len(args):
-            result[key] = args[i]
-            i += 1
-        else:
-            result[key] = default
-
-    return result
+def command(func):
+    """Decorator to register extended commands"""
+    EXTENDED_COMMANDS[func.__name__] = func
+    return func
 
 # Configuration Commands
-def cmd_config_set(args: List[str]):
+@command
+def config_set(key: str = None, value: str = None):
     """Set a configuration value"""
-    if len(args) < 2:
-        echo_error("Usage: config_set <key> <value>")
-        return
-
-    key, value = args[0], args[1]
     config[key] = value
     save_config(config)
     echo_success(f"Set {key} = {value}")
 
-def cmd_config_get(args: List[str]):
+@app.command()
+def config_get(key: str = typer.Argument(None)):
     """Get configuration value(s)"""
-    if args:
-        key = args[0]
+    if key:
         value = config.get(key, "Not set")
         console.print(f"{key}: [cyan]{value}[/cyan]")
     else:
@@ -463,15 +453,14 @@ def cmd_config_get(args: List[str]):
 
         console.print(table)
 
-def cmd_theme(args: List[str]):
+@app.command()
+def theme(name: str = typer.Argument(None)):
     """Set or list themes"""
-    if args:
-        name = args[0]
+    if name:
         if name in THEMES:
             config["theme"] = name
             save_config(config)
             echo_success(f"Theme set to: {name}")
-            echo_warning("Restart DeviShell to apply theme")
         else:
             echo_error(f"Unknown theme: {name}")
             console.print(f"Available themes: {', '.join(THEMES.keys())}")
@@ -480,9 +469,10 @@ def cmd_theme(args: List[str]):
         console.print(f"Available themes: {', '.join(THEMES.keys())}")
 
 # Bookmark Commands
-def cmd_bookmark(args: List[str]):
+@app.command()
+def bookmark(name: str = typer.Argument(None), path: str = typer.Argument(None)):
     """Bookmark current or specified directory"""
-    if not args:
+    if not name:
         # List bookmarks
         if not bookmarks:
             echo_info("No bookmarks saved")
@@ -498,8 +488,7 @@ def cmd_bookmark(args: List[str]):
         console.print(table)
     else:
         # Add bookmark
-        name = args[0]
-        target_path = args[1] if len(args) > 1 else os.getcwd()
+        target_path = path if path else os.getcwd()
         target_path = os.path.abspath(os.path.expanduser(target_path))
 
         if not os.path.isdir(target_path):
@@ -510,13 +499,9 @@ def cmd_bookmark(args: List[str]):
         save_bookmarks()
         echo_success(f"Bookmarked '{target_path}' as '@{name}'")
 
-def cmd_unbookmark(args: List[str]):
+@app.command()
+def unbookmark(name: str):
     """Remove a bookmark"""
-    if not args:
-        echo_error("Usage: unbookmark <name>")
-        return
-
-    name = args[0]
     if name in bookmarks:
         del bookmarks[name]
         save_bookmarks()
@@ -525,9 +510,10 @@ def cmd_unbookmark(args: List[str]):
         echo_error(f"Bookmark not found: {name}")
 
 # Alias Commands
-def cmd_alias(args: List[str]):
+@app.command()
+def alias(name: str = typer.Argument(None), command: str = typer.Argument(None)):
     """Create or list command aliases"""
-    if not args:
+    if not name:
         # List aliases
         if not aliases:
             echo_info("No aliases defined")
@@ -541,28 +527,21 @@ def cmd_alias(args: List[str]):
             table.add_row(alias_name, alias_cmd)
 
         console.print(table)
-    elif len(args) == 1:
+    elif not command:
         # Show specific alias
-        name = args[0]
         if name in aliases:
             console.print(f"{name}: [cyan]{aliases[name]}[/cyan]")
         else:
             echo_error(f"Alias not found: {name}")
     else:
         # Create alias
-        name = args[0]
-        command = " ".join(args[1:])
         aliases[name] = command
         save_aliases()
         echo_success(f"Created alias: {name} -> {command}")
 
-def cmd_unalias(args: List[str]):
+@app.command()
+def unalias(name: str):
     """Remove an alias"""
-    if not args:
-        echo_error("Usage: unalias <name>")
-        return
-
-    name = args[0]
     if name in aliases:
         del aliases[name]
         save_aliases()
@@ -570,22 +549,10 @@ def cmd_unalias(args: List[str]):
     else:
         echo_error(f"Alias not found: {name}")
 
-# File Operations (continuing in next part due to length...)
-def cmd_search(args: List[str]):
+# File Operations
+@app.command()
+def search(term: str, path: str = typer.Option(".", "-p", "--path")):
     """Recursively search for files and directories"""
-    if not args:
-        echo_error("Usage: search <term> [-p path]")
-        return
-
-    term = args[0]
-    path = "."
-
-    # Check for -p flag
-    if "-p" in args:
-        idx = args.index("-p")
-        if idx + 1 < len(args):
-            path = args[idx + 1]
-
     echo_info(f"Searching for '[bold white]{term}[/bold white]' in '{os.path.abspath(path)}'...")
     match_count = 0
 
@@ -600,20 +567,9 @@ def cmd_search(args: List[str]):
 
     echo_info(f"Found {match_count} match(es).")
 
-def cmd_tree(args: List[str]):
+@app.command()
+def tree(path: str = typer.Argument("."), max_depth: int = typer.Option(3, "-d", "--depth")):
     """Display directory tree"""
-    path = args[0] if args else "."
-    max_depth = 3
-
-    # Check for -d flag
-    if "-d" in args:
-        idx = args.index("-d")
-        if idx + 1 < len(args):
-            try:
-                max_depth = int(args[idx + 1])
-            except:
-                pass
-
     path = os.path.abspath(path)
     tree_obj = Tree(f"📁 [bold cyan]{path}[/bold cyan]")
 
@@ -639,13 +595,9 @@ def cmd_tree(args: List[str]):
     add_tree_items(tree_obj, path, 0)
     console.print(tree_obj)
 
-def cmd_mkcd(args: List[str]):
+@app.command()
+def mkcd(name: str):
     """Create directory and enter it"""
-    if not args:
-        echo_error("Usage: mkcd <dirname>")
-        return
-
-    name = args[0]
     try:
         os.makedirs(name, exist_ok=True)
         shell_cd([name])
@@ -653,36 +605,18 @@ def cmd_mkcd(args: List[str]):
     except OSError as e:
         echo_error(f"Could not create directory: {e}")
 
-def cmd_touch(args: List[str]):
+@app.command()
+def touch(filename: str):
     """Create an empty file"""
-    if not args:
-        echo_error("Usage: touch <filename>")
-        return
-
-    filename = args[0]
     try:
         Path(filename).touch()
         echo_success(f"Created file: {filename}")
     except Exception as e:
         echo_error(f"Failed to create file: {e}")
 
-def cmd_cat(args: List[str]):
+@app.command()
+def cat(filename: str, lines: int = typer.Option(None, "-n", "--lines")):
     """Display file contents with syntax highlighting"""
-    if not args:
-        echo_error("Usage: cat <filename> [-n lines]")
-        return
-
-    filename = args[0]
-    lines = None
-
-    if "-n" in args:
-        idx = args.index("-n")
-        if idx + 1 < len(args):
-            try:
-                lines = int(args[idx + 1])
-            except:
-                pass
-
     try:
         with open(filename, 'r') as f:
             content = f.read()
@@ -698,15 +632,11 @@ def cmd_cat(args: List[str]):
     except Exception as e:
         echo_error(f"Error reading file: {e}")
 
-def cmd_grep(args: List[str]):
+@app.command()
+def grep(pattern: str, path: str = typer.Argument("."),
+         recursive: bool = typer.Option(True, "-r", "--recursive")):
     """Search for pattern in files"""
-    if not args:
-        echo_error("Usage: grep <pattern> [path] [-r]")
-        return
-
-    pattern = args[0]
-    path = args[1] if len(args) > 1 else "."
-    recursive = "-r" in args or len(args) > 1
+    import re
 
     echo_info(f"Searching for pattern: {pattern}")
     match_count = 0
@@ -735,13 +665,9 @@ def cmd_grep(args: List[str]):
 
     echo_info(f"Found {match_count} match(es)")
 
-def cmd_copy(args: List[str]):
+@app.command()
+def copy(source: str, dest: str):
     """Copy file or directory"""
-    if len(args) < 2:
-        echo_error("Usage: copy <source> <dest>")
-        return
-
-    source, dest = args[0], args[1]
     try:
         if os.path.isdir(source):
             shutil.copytree(source, dest)
@@ -751,28 +677,18 @@ def cmd_copy(args: List[str]):
     except Exception as e:
         echo_error(f"Copy failed: {e}")
 
-def cmd_move(args: List[str]):
+@app.command()
+def move(source: str, dest: str):
     """Move file or directory"""
-    if len(args) < 2:
-        echo_error("Usage: move <source> <dest>")
-        return
-
-    source, dest = args[0], args[1]
     try:
         shutil.move(source, dest)
         echo_success(f"Moved: {source} -> {dest}")
     except Exception as e:
         echo_error(f"Move failed: {e}")
 
-def cmd_remove(args: List[str]):
+@app.command()
+def remove(path: str, force: bool = typer.Option(False, "-f", "--force")):
     """Remove file or directory"""
-    if not args:
-        echo_error("Usage: remove <path> [-f]")
-        return
-
-    path = args[0]
-    force = "-f" in args
-
     if not force:
         confirm = input(f"Remove {path}? (y/N): ")
         if confirm.lower() != 'y':
@@ -789,18 +705,9 @@ def cmd_remove(args: List[str]):
         echo_error(f"Remove failed: {e}")
 
 # Network Commands
-def cmd_serve(args: List[str]):
+@app.command()
+def serve(port: int = 8000, path: str = typer.Option(".", "-d", "--directory")):
     """Start a local HTTP server"""
-    port = 8000
-    path = "."
-
-    # Parse args
-    for i, arg in enumerate(args):
-        if arg.isdigit():
-            port = int(arg)
-        elif arg == "-d" and i + 1 < len(args):
-            path = args[i + 1]
-
     class DirectoryHandler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=os.path.abspath(path), **kwargs)
@@ -820,7 +727,8 @@ def cmd_serve(args: List[str]):
         httpd.shutdown()
         echo_warning("\nWeb server stopped.")
 
-def cmd_myip(args: List[str]):
+@app.command()
+def myip():
     """Show local IP address"""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -831,12 +739,9 @@ def cmd_myip(args: List[str]):
     except Exception:
         echo_error("Could not determine local IP address")
 
-def cmd_port_scan(args: List[str]):
+@app.command()
+def port_scan(host: str = "localhost", start: int = 1, end: int = 1024):
     """Scan for open ports"""
-    host = args[0] if args else "localhost"
-    start = int(args[1]) if len(args) > 1 else 1
-    end = int(args[2]) if len(args) > 2 else 1024
-
     echo_info(f"Scanning ports {start}-{end} on {host}...")
     open_ports = []
 
@@ -861,7 +766,8 @@ def cmd_port_scan(args: List[str]):
         echo_info("No open ports found")
 
 # System Commands
-def cmd_sysinfo(args: List[str]):
+@app.command()
+def sysinfo():
     """Display system information"""
     table = Table(title="System Information")
     table.add_column("Property", style="cyan")
@@ -892,17 +798,9 @@ def cmd_sysinfo(args: List[str]):
 
     console.print(table)
 
-def cmd_processes(args: List[str]):
+@app.command()
+def processes(limit: int = typer.Option(20, "-n", "--limit")):
     """List running processes"""
-    limit = 20
-    if "-n" in args:
-        idx = args.index("-n")
-        if idx + 1 < len(args):
-            try:
-                limit = int(args[idx + 1])
-            except:
-                pass
-
     table = Table(title="Top Processes")
     table.add_column("PID", style="cyan", width=8)
     table.add_column("Name", style="white", width=30)
@@ -929,28 +827,25 @@ def cmd_processes(args: List[str]):
 
     console.print(table)
 
-def cmd_kill(args: List[str]):
+@app.command()
+def kill(pid: int):
     """Kill a process by PID"""
-    if not args:
-        echo_error("Usage: kill <pid>")
-        return
-
     try:
-        pid = int(args[0])
         process = psutil.Process(pid)
         process_name = process.name()
         process.kill()
         echo_success(f"Killed process {pid} ({process_name})")
     except psutil.NoSuchProcess:
-        echo_error(f"No process with PID {args[0]}")
+        echo_error(f"No process with PID {pid}")
     except psutil.AccessDenied:
-        echo_error(f"Access denied to kill process {args[0]}")
+        echo_error(f"Access denied to kill process {pid}")
     except Exception as e:
         echo_error(f"Failed to kill process: {e}")
 
-def cmd_env(args: List[str]):
+@app.command()
+def env(var: str = typer.Argument(None), value: str = typer.Argument(None)):
     """Get or set environment variables"""
-    if not args:
+    if not var:
         # List all environment variables
         table = Table(title="Environment Variables")
         table.add_column("Variable", style="cyan")
@@ -962,9 +857,8 @@ def cmd_env(args: List[str]):
             table.add_row(key, display_val)
 
         console.print(table)
-    elif len(args) == 1:
+    elif not value:
         # Get specific variable
-        var = args[0]
         val = os.environ.get(var)
         if val:
             console.print(f"{var}: [cyan]{val}[/cyan]")
@@ -972,13 +866,12 @@ def cmd_env(args: List[str]):
             echo_warning(f"Environment variable not set: {var}")
     else:
         # Set variable
-        var, value = args[0], args[1]
         os.environ[var] = value
         echo_success(f"Set {var} = {value}")
 
-def cmd_diskusage(args: List[str]):
+@app.command()
+def diskusage(path: str = "."):
     """Show disk usage of directory"""
-    path = args[0] if args else "."
     path = os.path.abspath(path)
 
     if not os.path.exists(path):
@@ -1012,7 +905,8 @@ def cmd_diskusage(args: List[str]):
     console.print(f"Directories: [magenta]{dir_count}[/magenta]")
 
 # Git Commands
-def cmd_gitstatus(args: List[str]):
+@app.command()
+def gitstatus():
     """Enhanced git status"""
     try:
         repo = git.Repo(search_parent_directories=True)
@@ -1049,17 +943,9 @@ def cmd_gitstatus(args: List[str]):
     except git.InvalidGitRepositoryError:
         echo_error("Not a git repository")
 
-def cmd_gitlog(args: List[str]):
+@app.command()
+def gitlog(count: int = typer.Option(10, "-n", "--count")):
     """Show git log"""
-    count = 10
-    if "-n" in args:
-        idx = args.index("-n")
-        if idx + 1 < len(args):
-            try:
-                count = int(args[idx + 1])
-            except:
-                pass
-
     try:
         repo = git.Repo(search_parent_directories=True)
 
@@ -1082,7 +968,8 @@ def cmd_gitlog(args: List[str]):
     except git.InvalidGitRepositoryError:
         echo_error("Not a git repository")
 
-def cmd_gitbranches(args: List[str]):
+@app.command()
+def gitbranches():
     """List git branches"""
     try:
         repo = git.Repo(search_parent_directories=True)
@@ -1098,27 +985,10 @@ def cmd_gitbranches(args: List[str]):
         echo_error("Not a git repository")
 
 # Utility Commands
-def cmd_pwgen(args: List[str]):
+@app.command()
+def pwgen(length: int = typer.Option(16, "-l", "--length"),
+          count: int = typer.Option(1, "-c", "--count")):
     """Generate secure random passwords"""
-    length = 16
-    count = 1
-
-    if "-l" in args:
-        idx = args.index("-l")
-        if idx + 1 < len(args):
-            try:
-                length = int(args[idx + 1])
-            except:
-                pass
-
-    if "-c" in args:
-        idx = args.index("-c")
-        if idx + 1 < len(args):
-            try:
-                count = int(args[idx + 1])
-            except:
-                pass
-
     alphabet = string.ascii_letters + string.digits + string.punctuation
 
     console.print("[bold magenta]Generated Passwords:[/bold magenta]")
@@ -1126,13 +996,9 @@ def cmd_pwgen(args: List[str]):
         password = ''.join(secrets.choice(alphabet) for _ in range(length))
         console.print(f"  • {password}")
 
-def cmd_calc(args: List[str]):
+@app.command()
+def calc(expression: str):
     """Simple calculator"""
-    if not args:
-        echo_error("Usage: calc <expression>")
-        return
-
-    expression = " ".join(args)
     try:
         # Safe evaluation
         allowed_chars = set("0123456789+-*/()%. ")
@@ -1145,9 +1011,9 @@ def cmd_calc(args: List[str]):
     except Exception as e:
         echo_error(f"Calculation error: {e}")
 
-def cmd_weather(args: List[str]):
+@app.command()
+def weather(city: str = typer.Argument("London")):
     """Get weather information (requires internet)"""
-    city = args[0] if args else "London"
     try:
         import urllib.request
         url = f"http://wttr.in/{city}?format=3"
@@ -1157,20 +1023,9 @@ def cmd_weather(args: List[str]):
     except Exception as e:
         echo_error(f"Could not fetch weather: {e}")
 
-def cmd_encode(args: List[str]):
+@app.command()
+def encode(text: str, method: str = typer.Option("base64", "-m", "--method")):
     """Encode text (base64, hex)"""
-    if not args:
-        echo_error("Usage: encode <text> [-m method]")
-        return
-
-    text = args[0]
-    method = "base64"
-
-    if "-m" in args:
-        idx = args.index("-m")
-        if idx + 1 < len(args):
-            method = args[idx + 1]
-
     import base64
 
     if method == "base64":
@@ -1183,20 +1038,9 @@ def cmd_encode(args: List[str]):
 
     console.print(f"Encoded ({method}): [cyan]{encoded}[/cyan]")
 
-def cmd_decode(args: List[str]):
+@app.command()
+def decode(text: str, method: str = typer.Option("base64", "-m", "--method")):
     """Decode text (base64, hex)"""
-    if not args:
-        echo_error("Usage: decode <text> [-m method]")
-        return
-
-    text = args[0]
-    method = "base64"
-
-    if "-m" in args:
-        idx = args.index("-m")
-        if idx + 1 < len(args):
-            method = args[idx + 1]
-
     import base64
 
     try:
@@ -1212,14 +1056,16 @@ def cmd_decode(args: List[str]):
     except Exception as e:
         echo_error(f"Decoding failed: {e}")
 
-def cmd_timestamp(args: List[str]):
+@app.command()
+def timestamp():
     """Show current Unix timestamp"""
     ts = int(datetime.now().timestamp())
     dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     console.print(f"Timestamp: [cyan]{ts}[/cyan]")
     console.print(f"Human: [yellow]{dt}[/yellow]")
 
-def cmd_plugins(args: List[str]):
+@app.command()
+def plugins():
     """List loaded plugins"""
     if not loaded_plugins:
         echo_info("No plugins loaded")
@@ -1235,23 +1081,22 @@ def cmd_plugins(args: List[str]):
 
     console.print(table)
 
-def cmd_help(args: List[str]):
+@app.command()
+def help_cmd(command: str = typer.Argument(None)):
     """Show help for commands"""
-    if args:
+    if command:
         # Show help for specific command
-        command = args[0]
         if command in BUILTIN_COMMANDS:
             func = BUILTIN_COMMANDS[command]
             doc = func.__doc__ or "No documentation available"
             console.print(Panel(f"[bold]{command}[/bold]\n\n{doc}",
                               title="Command Help", border_style="cyan"))
-        elif command in EXTENDED_COMMANDS:
-            func = EXTENDED_COMMANDS[command]
-            doc = func.__doc__ or "No documentation available"
-            console.print(Panel(f"[bold]{command}[/bold]\n\n{doc}",
-                              title="Command Help", border_style="cyan"))
         else:
-            echo_error(f"Unknown command: {command}")
+            # Try typer command
+            try:
+                app(["--help"], standalone_mode=False)
+            except SystemExit:
+                pass
     else:
         # Show all commands
         console.print(Panel("[bold cyan]DeviShell - Enhanced PowerShell Experience[/bold cyan]\n\n"
@@ -1263,51 +1108,13 @@ def cmd_help(args: List[str]):
         for cmd in sorted(BUILTIN_COMMANDS.keys()):
             console.print(f"  • [cyan]{cmd}[/cyan]")
 
-        # Extended commands
+        # Typer commands
         console.print("\n[bold yellow]Extended Commands:[/bold yellow]")
-        for cmd in sorted(EXTENDED_COMMANDS.keys()):
-            console.print(f"  • [cyan]{cmd}[/cyan]")
+        for cmd in app.registered_commands:
+            if cmd.name:
+                console.print(f"  • [cyan]{cmd.name}[/cyan]")
 
-        console.print("\n[dim]Use 'help <command>' for detailed help[/dim]")
-
-# Register all extended commands
-EXTENDED_COMMANDS.update({
-    "config_set": cmd_config_set,
-    "config_get": cmd_config_get,
-    "theme": cmd_theme,
-    "bookmark": cmd_bookmark,
-    "unbookmark": cmd_unbookmark,
-    "alias": cmd_alias,
-    "unalias": cmd_unalias,
-    "search": cmd_search,
-    "tree": cmd_tree,
-    "mkcd": cmd_mkcd,
-    "touch": cmd_touch,
-    "cat": cmd_cat,
-    "grep": cmd_grep,
-    "copy": cmd_copy,
-    "move": cmd_move,
-    "remove": cmd_remove,
-    "serve": cmd_serve,
-    "myip": cmd_myip,
-    "port_scan": cmd_port_scan,
-    "sysinfo": cmd_sysinfo,
-    "processes": cmd_processes,
-    "kill": cmd_kill,
-    "env": cmd_env,
-    "diskusage": cmd_diskusage,
-    "gitstatus": cmd_gitstatus,
-    "gitlog": cmd_gitlog,
-    "gitbranches": cmd_gitbranches,
-    "pwgen": cmd_pwgen,
-    "calc": cmd_calc,
-    "weather": cmd_weather,
-    "encode": cmd_encode,
-    "decode": cmd_decode,
-    "timestamp": cmd_timestamp,
-    "plugins": cmd_plugins,
-    "help": cmd_help,
-})
+        console.print("\n[dim]Use 'help_cmd <command>' for detailed help[/dim]")
 
 # ====================
 # Command Execution
@@ -1330,6 +1137,23 @@ def run_system_command(command: List[str]):
         echo_warning("\nCommand interrupted")
     except Exception as e:
         echo_error(f"An unexpected error occurred: {e}")
+
+def get_typer_commands():
+    """Get dictionary of all typer commands"""
+    import sys
+    from io import StringIO
+
+    # Build command registry
+    commands = {}
+
+    # Use globals to find all command functions
+    for name, obj in globals().items():
+        if callable(obj) and hasattr(obj, '__wrapped__'):
+            # This is a typer command
+            # Map the function name to the function
+            commands[name.replace('_', '')] = obj  # Remove underscores for command names
+
+    return commands
 
 def execute_command(command: List[str]):
     """Execute a command"""
@@ -1355,10 +1179,34 @@ def execute_command(command: List[str]):
         BUILTIN_COMMANDS[command_name](args)
         return
 
-    # Extended commands
-    if command_name in EXTENDED_COMMANDS:
-        EXTENDED_COMMANDS[command_name](args)
+    # Try Typer commands using CLI invocation
+    try:
+        import sys
+        from io import StringIO
+
+        # Capture sys.argv
+        old_argv = sys.argv
+        sys.argv = [sys.argv[0]] + command
+
+        # Try to invoke the typer app
+        try:
+            app(standalone_mode=False)
+            return
+        finally:
+            sys.argv = old_argv
+
+    except typer.Exit:
         return
+    except SystemExit as e:
+        if e.code == 0:
+            return
+        # Command might not exist, continue to plugins
+    except Exception as e:
+        # If it's a real error (not "command not found"), show it
+        error_msg = str(e).lower()
+        if "no such command" not in error_msg and "not recognized" not in error_msg:
+            echo_error(f"Command error: {e}")
+            return
 
     # Check plugins
     for plugin_name, plugin_module in loaded_plugins.items():
@@ -1401,7 +1249,7 @@ def main():
         "[bold cyan]DeviShell[/bold cyan] [white]v2.0[/white]\n"
         "[dim]The Ultimate PowerShell Experience[/dim]\n\n"
         f"Theme: [cyan]{config.get('theme', 'default')}[/cyan] | "
-        f"Type [yellow]help[/yellow] for assistance",
+        f"Type [yellow]help_cmd[/yellow] for assistance",
         border_style="cyan"
     ))
 
@@ -1410,8 +1258,9 @@ def main():
 
     # Setup prompt
     update_prompt_cache()
-    all_commands = list(BUILTIN_COMMANDS.keys()) + list(EXTENDED_COMMANDS.keys())
-    unique_sorted_commands = sorted(list(set(all_commands)))
+    typer_commands = [cmd.name for cmd in app.registered_commands if cmd.name]
+    builtin_command_names = list(BUILTIN_COMMANDS.keys())
+    unique_sorted_commands = sorted(list(set(typer_commands + builtin_command_names)))
 
     # Create session
     completer = DeviShellCompleter(unique_sorted_commands)
